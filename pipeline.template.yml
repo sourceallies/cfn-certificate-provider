@@ -198,6 +198,7 @@ Resources:
                 StackName: CfnCertificateProvider
                 ActionMode: REPLACE_ON_FAILURE
                 TemplatePath: buildResults::cloudformation.template.yml
+                RoleArn: !FindInMap [Accounts, Shared, PipelineRoleArn]
                 Capabilities: CAPABILITY_IAM
               RunOrder: 1
         - Name: Deploy_Dev
