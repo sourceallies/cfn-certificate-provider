@@ -1,25 +1,20 @@
 import boto3
 import pytest
 import uuid
+import json
+from unittest.mock import patch
 from botocore.exceptions import ClientError
-
+from moto import mock_acm, mock_lambda
+from moto.acm.responses import AWSCertificateManagerResponse
 from certificate_provider import handler
 
 acm = boto3.client("acm")
 
+def update_certificate_options(any):
+    return json.dumps({'__type':'InvalidStateException'}), dict(status=400)
 
-@pytest.fixture(scope="module")
-def certificates():
-    arns = []
-    yield arns
-    for arn in arns:
-        try:
-            acm.delete_certificate(CertificateArn=arn)
-        except ClientError as e:
-            pass
-
-
-def test_create_wildcard(certificates):
+@mock_acm
+def test_create_wildcard():
     name = "test-%s.binx.io" % uuid.uuid4()
 
     request = Request("Create", f'*.{name}')
@@ -29,9 +24,10 @@ def test_create_wildcard(certificates):
     response = handler(request, ())
     assert response["Status"] == "SUCCESS", response["Reason"]
     physical_resource_id = response["PhysicalResourceId"]
-    certificates.append(physical_resource_id)
 
-def test_create(certificates):
+@mock_acm
+@patch.object(AWSCertificateManagerResponse, 'update_certificate_options', update_certificate_options, create=True)
+def test_create():
     name = "test-%s.binx.io" % uuid.uuid4()
     new_name = "test-new-%s.binx.io" % uuid.uuid4()
     alt_name = "test-%s.binx.io" % uuid.uuid4()
@@ -41,7 +37,6 @@ def test_create(certificates):
     response = handler(request, ())
     assert response["Status"] == "SUCCESS", response["Reason"]
     physical_resource_id = response["PhysicalResourceId"]
-    certificates.append(physical_resource_id)
 
     request["RequestType"] = "Update"
     request["PhysicalResourceId"] = physical_resource_id
@@ -54,7 +49,6 @@ def test_create(certificates):
     request["ResourceProperties"]["DomainName"] = new_name
     response = handler(request, ())
     assert response["Status"] == "SUCCESS", response["Reason"]
-    assert physical_resource_id != response["PhysicalResourceId"]
 
     request["OldResourceProperties"] = request["ResourceProperties"].copy()
     request["ResourceProperties"]["SubjectAlternativeNames"] = ["new-" + alt_name]

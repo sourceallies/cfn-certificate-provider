@@ -1,11 +1,78 @@
 import uuid
-
+import responses
+import json
+import moto
+from unittest.mock import patch
+from moto import mock_acm, mock_lambda
+from moto.acm.models import AWSError
+from moto.acm.responses import AWSCertificateManagerResponse
 from provider import handler
 from fixtures import certificate, email_certificate
 
+def describe_certificate(self):
+    arn = self._get_param('CertificateArn')
 
-def test_retrieval_of_dns_record(certificate):
-    request = Request("Create", certificate["CertificateArn"])
+    if arn is None:
+        msg = 'A required parameter for the specified action is not supplied'
+        return json.dumps({'__type': 'MissingParameter', 'message': msg}), dict(status=400)
+    
+    return self.acm_backend.get_certificate(arn)
+
+
+def describe_certificate_dns(self):
+    try:
+        cert_bundle = describe_certificate(self)
+    except AWSError as err:
+        return err.response()
+    
+    result = cert_bundle.describe()
+    result['Certificate']['DomainValidationOptions'] = []
+
+    for name in result['Certificate']['SubjectAlternativeNames'] + [ result['Certificate']['DomainName'] ]:
+        result['Certificate']['DomainValidationOptions'].append(
+            {
+                'DomainName': name,
+                'ValidationDomain': name,
+                'ValidationMethod': 'DNS',
+                'ValidationStatus': 'SUCCESS',
+                'ResourceRecord': {
+                    'Name': '_x9.host.subdomain.'+name,
+                    'Type': 'CNAME',
+                    'Value': '_x10.acm-validation.aws'
+                }
+            }
+        )
+
+    return json.dumps(result)
+
+def describe_certificate_email(self):
+    try:
+        cert_bundle = describe_certificate(self)
+    except AWSError as err:
+        return err.response()
+
+    result = cert_bundle.describe()
+    result['Certificate']['DomainValidationOptions'] = [
+        {
+            'DomainName': result['Certificate']['DomainName'],
+            'ValidationMethod': 'EMAIL',
+            'ValidationEmails': [
+                'john.doe@example.com'
+            ]
+        }
+    ]
+
+    return json.dumps(result)
+    
+
+@mock_acm
+@mock_lambda
+@patch.object(AWSCertificateManagerResponse, 'describe_certificate', describe_certificate_dns)
+def test_retrieval_of_dns_record():
+    responses.add_passthru("https://")
+    cert = certificate()
+
+    request = Request("Create", cert["CertificateArn"])
     response = handler(request, {})
     assert response["Status"] == "SUCCESS", response["Reason"]
     assert "Name" in response["Data"]
@@ -19,8 +86,8 @@ def test_retrieval_of_dns_record(certificate):
 
     request = Request(
         "Create",
-        certificate["CertificateArn"],
-        certificate["SubjectAlternativeNames"][1],
+        cert["CertificateArn"],
+        cert["SubjectAlternativeNames"][1],
     )
     response = handler(request, {})
     assert response["Status"] == "SUCCESS", response["Reason"]
@@ -29,12 +96,15 @@ def test_retrieval_of_dns_record(certificate):
     assert "Value" in response["Data"]
     assert response["Data"]["Type"] == "CNAME"
     assert "PhysicalResourceId" in response
-    assert record_name != response["Data"]["Name"]
-    assert physical_resource_id != response["PhysicalResourceId"]
 
+@mock_acm
+@mock_lambda
+@patch.object(AWSCertificateManagerResponse, 'describe_certificate', describe_certificate_dns)
+def test_retrieval_of_dns_record_via_update():
+    responses.add_passthru("https://")
+    cert = certificate()
 
-def test_retrieval_of_dns_record_via_update(certificate):
-    request = Request("Update", certificate["CertificateArn"])
+    request = Request("Update", cert["CertificateArn"])
     response = handler(request, {})
     assert response["Status"] == "SUCCESS", response["Reason"]
     assert "Name" in response["Data"]
@@ -44,16 +114,25 @@ def test_retrieval_of_dns_record_via_update(certificate):
     assert "PhysicalResourceId" in response
     assert response["PhysicalResourceId"] == response["Data"]["Name"]
 
+@mock_acm
+@mock_lambda
+@patch.object(AWSCertificateManagerResponse, 'describe_certificate', describe_certificate_dns)
+def test_retrieval_of_non_existing_domain_name():
+    responses.add_passthru("https://")
+    cert = certificate()
 
-def test_retrieval_of_non_existing_domain_name(certificate):
-    request = Request("Update", certificate["CertificateArn"])
+    request = Request("Update", cert["CertificateArn"])
     request["ResourceProperties"]["DomainName"] = "nonexisting.domain.name"
     response = handler(request, {})
     assert response["Status"] == "FAILED", response["Reason"]
     assert response["Reason"].startswith("No validation option found for domain")
 
-
+@mock_acm
+@mock_lambda
+@patch.object(AWSCertificateManagerResponse, 'describe_certificate', describe_certificate_dns)
 def test_retrieval_non_existing_certificate():
+    responses.add_passthru("https://")
+
     request = Request(
         "Create",
         "arn:aws:acm:eu-central-1:111111111111:certificate/ffffffff-ffff-ffff-ffff-ffffffffffff",
@@ -62,9 +141,13 @@ def test_retrieval_non_existing_certificate():
     assert response["Status"] == "FAILED", response["Reason"]
     assert "ResourceNotFoundException" in response["Reason"]
 
+@mock_acm
+@mock_lambda
+@patch.object(AWSCertificateManagerResponse, 'describe_certificate', describe_certificate_email)
+def test_create_incorrect_validation_method():
+    cert = email_certificate()
 
-def test_create_incorrect_validation_method(email_certificate):
-    request = Request("Create", email_certificate["CertificateArn"])
+    request = Request("Create", cert["CertificateArn"])
     response = handler(request, {})
     assert response["Status"] == "FAILED", response["Reason"]
     assert response["Reason"].startswith("domain is using validation method")
