@@ -3,8 +3,11 @@ phases:
   install:
     runtime-versions:
       docker: 18
+    commands:
+      - pip3 install virtualenv
   build:
     commands:
+      - make
       - make test
 artifacts:
   discard-paths: yes
