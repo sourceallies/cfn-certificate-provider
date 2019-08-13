@@ -69,3 +69,9 @@ Resources:
       Role: !GetAtt 'LambdaRole.Arn'
       Runtime: python3.6
       Timeout: 300
+Outputs:
+  FunctionARN:
+    Value: !GetAtt CFNCustomProvider.Arn
+    Description: ARN of the custom resource provider for automated DNS verification for SSL Certificates
+    Export:
+      Name: !Sub ${AWS::StackName}-FunctionARN
