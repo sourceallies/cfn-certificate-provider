@@ -196,7 +196,7 @@ Resources:
                 - Name: buildResults
               Configuration:
                 StackName: CfnCertificateProvider
-                ActionMode: REPLACE_ON_FAILURE
+                ActionMode: CREATE_UPDATE
                 TemplatePath: buildResults::cloudformation.template.yml
                 RoleArn: !FindInMap [Accounts, Shared, PipelineRoleArn]
                 Capabilities: CAPABILITY_IAM
@@ -214,7 +214,7 @@ Resources:
                 - Name: buildResults
               Configuration:
                 StackName: CfnCertificateProvider
-                ActionMode: REPLACE_ON_FAILURE
+                ActionMode: CREATE_UPDATE
                 TemplatePath: buildResults::cloudformation.template.yml
                 RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
                 Capabilities: CAPABILITY_IAM
@@ -232,7 +232,7 @@ Resources:
                 - Name: buildResults
               Configuration:
                 StackName: CfnCertificateProvider
-                ActionMode: REPLACE_ON_FAILURE
+                ActionMode: CREATE_UPDATE
                 TemplatePath: buildResults::cloudformation.template.yml
                 RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
                 Capabilities: CAPABILITY_IAM
@@ -259,7 +259,7 @@ Resources:
                 - Name: buildResults
               Configuration:
                 StackName: CfnCertificateProvider
-                ActionMode: REPLACE_ON_FAILURE
+                ActionMode: CREATE_UPDATE
                 TemplatePath: buildResults::cloudformation.template.yml
                 RoleArn: !FindInMap [Accounts, Prod, DeployerRoleArn]
                 Capabilities: CAPABILITY_IAM
