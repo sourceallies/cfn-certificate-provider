@@ -34,9 +34,16 @@ Mappings:
       Name: Prod
       Id: "487696863217"
       DeployerRoleArn: arn:aws:iam::487696863217:role/Deployer
+Conditions:
+  InUsEast1:
+    !Equals 
+      - !Ref AWS::Region
+      - us-east-1
 Resources:
   ArtifactStore:
     Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub cfn-certificate-provider-artifacts-${AWS::Region}
   ArtifactStorePolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -71,8 +78,14 @@ Resources:
                 - !FindInMap [Accounts, Dev, DeployerRoleArn]
                 - !FindInMap [Accounts, Qual, DeployerRoleArn]
                 - !FindInMap [Accounts, Prod, DeployerRoleArn]
+  ArtifactKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties: 
+      TargetKeyId: !Ref ArtifactKey
+      AliasName: alias/cfn-certificate-provider-artifacts
   BranchedBuildProject:
     Type: AWS::CodeBuild::Project
+    Condition: InUsEast1
     Properties:
       Name: !Sub ${AWS::StackName}-branched-build
       ServiceRole: !FindInMap [Accounts, Shared, PipelineRoleArn]
@@ -107,6 +120,7 @@ Resources:
               Type: EVENT
   BuildProject:
     Type: AWS::CodeBuild::Project
+    Condition: InUsEast1
     Properties:
       Name: !Sub ${AWS::StackName}-build
       ServiceRole: !FindInMap [Accounts, Shared, PipelineRoleArn]
@@ -130,6 +144,7 @@ Resources:
         Type: CODEPIPELINE
   PipelineWebhook:
     Type: AWS::CodePipeline::Webhook
+    Condition: InUsEast1
     Properties:
       Authentication: GITHUB_HMAC
       AuthenticationConfiguration:
@@ -143,14 +158,24 @@ Resources:
       RegisterWithThirdParty: true
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
+    Condition: InUsEast1
     Properties:
       Name: !Ref AWS::StackName
-      ArtifactStore:
-        Type: S3
-        Location: !Ref ArtifactStore
-        EncryptionKey:
-          Id: !GetAtt ArtifactKey.Arn
-          Type: KMS
+      ArtifactStores:
+        - Region: us-east-1
+          ArtifactStore:
+            Type: S3
+            Location: cfn-certificate-provider-artifacts-us-east-1
+            EncryptionKey:
+              Id: !Sub arn:aws:kms:us-east-1:${AWS::AccountId}:alias/cfn-certificate-provider-artifacts
+              Type: KMS
+        - Region: us-west-2
+          ArtifactStore:
+            Type: S3
+            Location: cfn-certificate-provider-artifacts-us-west-2
+            EncryptionKey:
+              Id: !Sub arn:aws:kms:us-west-2:${AWS::AccountId}:alias/cfn-certificate-provider-artifacts
+              Type: KMS
       RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/Pipeline
       RestartExecutionOnUpdate: true
       Stages:
@@ -203,8 +228,25 @@ Resources:
               RunOrder: 1
         - Name: Deploy_Dev
           Actions:
-            - Name: Deploy
+            - Name: UsEast1
               RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              InputArtifacts:
+                - Name: buildResults
+              Configuration:
+                StackName: CfnCertificateProvider
+                ActionMode: CREATE_UPDATE
+                TemplatePath: buildResults::cloudformation.template.yml
+                RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
+                Capabilities: CAPABILITY_IAM
+              RunOrder: 1
+            - Name: UsWest2
+              RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
+              Region: us-west-2
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -221,7 +263,24 @@ Resources:
               RunOrder: 1
         - Name: Deploy_Qual
           Actions:
-            - Name: Deploy
+            - Name: UsEast1
+              RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              InputArtifacts:
+                - Name: buildResults
+              Configuration:
+                StackName: CfnCertificateProvider
+                ActionMode: CREATE_UPDATE
+                TemplatePath: buildResults::cloudformation.template.yml
+                RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
+                Capabilities: CAPABILITY_IAM
+              RunOrder: 1
+            - Name: UsWest2
+              Region: us-west-2
               RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
               ActionTypeId:
                 Category: Deploy
@@ -248,7 +307,24 @@ Resources:
               InputArtifacts: []
               OutputArtifacts: []
               RunOrder: 1
-            - Name: Deploy
+            - Name: UsEast1
+              RoleArn: !FindInMap [Accounts, Prod, DeployerRoleArn]
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              InputArtifacts:
+                - Name: buildResults
+              Configuration:
+                StackName: CfnCertificateProvider
+                ActionMode: CREATE_UPDATE
+                TemplatePath: buildResults::cloudformation.template.yml
+                RoleArn: !FindInMap [Accounts, Prod, DeployerRoleArn]
+                Capabilities: CAPABILITY_IAM
+              RunOrder: 2
+            - Name: UsWest2
+              Region: us-west-2
               RoleArn: !FindInMap [Accounts, Prod, DeployerRoleArn]
               ActionTypeId:
                 Category: Deploy
