@@ -26,10 +26,6 @@ Mappings:
       Name: Dev
       Id: "729161019481"
       DeployerRoleArn: arn:aws:iam::729161019481:role/Deployer
-    Qual:
-      Name: Qual
-      Id: "035409092456"
-      DeployerRoleArn: arn:aws:iam::035409092456:role/Deployer
     Prod:
       Name: Prod
       Id: "487696863217"
@@ -59,9 +55,8 @@ Resources:
               AWS:
                 - !FindInMap [Accounts, Shared, PipelineRoleArn] 
                 - !FindInMap [Accounts, Dev, DeployerRoleArn]
-                - !FindInMap [Accounts, Qual, DeployerRoleArn] 
                 - !FindInMap [Accounts, Prod, DeployerRoleArn]
-  ArtifactKey: #Needed to allow Dev/Qual/Prod to decrypt artifacts in the Shared account's ArtifactStore
+  ArtifactKey: #Needed to allow Dev/Prod to decrypt artifacts in the Shared account's ArtifactStore
     Type: AWS::KMS::Key
     Properties:
       Description: Key used for encrypting artifacts
@@ -76,7 +71,6 @@ Resources:
               AWS:
                 - !FindInMap [Accounts, Shared, Id]
                 - !FindInMap [Accounts, Dev, DeployerRoleArn]
-                - !FindInMap [Accounts, Qual, DeployerRoleArn]
                 - !FindInMap [Accounts, Prod, DeployerRoleArn]
   ArtifactKeyAlias:
     Type: AWS::KMS::Alias
@@ -259,41 +253,6 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 TemplatePath: buildResults::cloudformation.template.yml
                 RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
-                Capabilities: CAPABILITY_IAM
-              RunOrder: 1
-        - Name: Deploy_Qual
-          Actions:
-            - Name: UsEast1
-              RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: 1
-              InputArtifacts:
-                - Name: buildResults
-              Configuration:
-                StackName: CfnCertificateProvider
-                ActionMode: CREATE_UPDATE
-                TemplatePath: buildResults::cloudformation.template.yml
-                RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
-                Capabilities: CAPABILITY_IAM
-              RunOrder: 1
-            - Name: UsWest2
-              Region: us-west-2
-              RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: 1
-              InputArtifacts:
-                - Name: buildResults
-              Configuration:
-                StackName: CfnCertificateProvider
-                ActionMode: CREATE_UPDATE
-                TemplatePath: buildResults::cloudformation.template.yml
-                RoleArn: !FindInMap [Accounts, Qual, DeployerRoleArn]
                 Capabilities: CAPABILITY_IAM
               RunOrder: 1
         - Name: Deploy_Prod
