@@ -163,13 +163,6 @@ Resources:
             EncryptionKey:
               Id: !Sub arn:aws:kms:us-east-1:${AWS::AccountId}:alias/cfn-certificate-provider-artifacts
               Type: KMS
-        - Region: us-west-2
-          ArtifactStore:
-            Type: S3
-            Location: cfn-certificate-provider-artifacts-us-west-2
-            EncryptionKey:
-              Id: !Sub arn:aws:kms:us-west-2:${AWS::AccountId}:alias/cfn-certificate-provider-artifacts
-              Type: KMS
       RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/Pipeline
       RestartExecutionOnUpdate: true
       Stages:
@@ -238,23 +231,6 @@ Resources:
                 RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
                 Capabilities: CAPABILITY_IAM
               RunOrder: 1
-            - Name: UsWest2
-              RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
-              Region: us-west-2
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: 1
-              InputArtifacts:
-                - Name: buildResults
-              Configuration:
-                StackName: CfnCertificateProvider
-                ActionMode: CREATE_UPDATE
-                TemplatePath: buildResults::cloudformation.template.yml
-                RoleArn: !FindInMap [Accounts, Dev, DeployerRoleArn]
-                Capabilities: CAPABILITY_IAM
-              RunOrder: 1
         - Name: Deploy_Prod
           Actions:
             - Name: Approve
@@ -267,23 +243,6 @@ Resources:
               OutputArtifacts: []
               RunOrder: 1
             - Name: UsEast1
-              RoleArn: !FindInMap [Accounts, Prod, DeployerRoleArn]
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: 1
-              InputArtifacts:
-                - Name: buildResults
-              Configuration:
-                StackName: CfnCertificateProvider
-                ActionMode: CREATE_UPDATE
-                TemplatePath: buildResults::cloudformation.template.yml
-                RoleArn: !FindInMap [Accounts, Prod, DeployerRoleArn]
-                Capabilities: CAPABILITY_IAM
-              RunOrder: 2
-            - Name: UsWest2
-              Region: us-west-2
               RoleArn: !FindInMap [Accounts, Prod, DeployerRoleArn]
               ActionTypeId:
                 Category: Deploy
