@@ -106,7 +106,7 @@ class Request(dict):
             {
                 "RequestType": request_type,
                 "ResponseURL": "https://httpbin.org/put",
-                "StackId": "arn:aws:cloudformation:us-west-2:EXAMPLE/stack-name/guid",
+                "StackId": "arn:aws:cloudformation:us-east-1:EXAMPLE/stack-name/guid",
                 "RequestId": request_id,
                 "ResourceType": "Custom::IssuedCertificate",
                 "LogicalResourceId": "Record",
