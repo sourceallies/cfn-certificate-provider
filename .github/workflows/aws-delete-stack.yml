@@ -1,0 +1,31 @@
+name: AWS Delete CfnCertificateProvider Stack
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which source environment to use
+        type: choice
+        required: true
+        options:
+          - DEV
+          - PROD
+          - QUAL
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  delete-stack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', inputs.environment)] }}
+          role-session-name: cfn-certificate-provider-delete-stack
+          role-duration-seconds: 1200
+
+      - name: Delete Stack
+        run: aws cloudformation delete-stack --stack-name CfnCertificateProvider
