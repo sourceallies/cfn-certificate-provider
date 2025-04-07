@@ -9,7 +9,10 @@ on:
         options:
           - DEV
           - PROD
-          - QUAL
+
+env:
+  DEV: "arn:aws:iam::729161019481:role/Deployer"
+  PROD: "arn:aws:iam::487696863217:role/Deployer"
 
 permissions:
   id-token: write
@@ -23,7 +26,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
-          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', inputs.environment)] }}
+          role-to-assume: ${{ env[inputs.environment] }}
           role-session-name: cfn-certificate-provider-delete-stack
           role-duration-seconds: 1200
 
