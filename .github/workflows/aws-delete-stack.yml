@@ -9,10 +9,16 @@ on:
         options:
           - DEV
           - PROD
+          - SANDBOX-DEV
+          - SANDBOX-PROD
+          - SHARED
 
 env:
   DEV: "arn:aws:iam::729161019481:role/Deployer"
   PROD: "arn:aws:iam::487696863217:role/Deployer"
+  SANDBOX-DEV: "arn:aws:iam::144406111952:role/Deployer"
+  SANDBOX-PROD: "arn:aws:iam::063694839755:role/Deployer"
+  SHARED: "arn:aws:iam::018303830101:role/Deployer"
 
 permissions:
   id-token: write
